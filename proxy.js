@@ -34,6 +34,12 @@ class ProxyServer {
 
   handleRequest(clientReq, clientRes) {
     try {
+      // 处理HTTPS CONNECT请求
+      if (clientReq.method === 'CONNECT') {
+        this.handleConnectRequest(clientReq, clientRes);
+        return;
+      }
+
       const parsedUrl = url.parse(clientReq.url);
       
       if (!parsedUrl.hostname) {
@@ -72,6 +78,38 @@ class ProxyServer {
     } catch (error) {
       this.logger.error('Unexpected error:', error);
       this.sendError(clientRes, 500, 'Internal Server Error');
+    }
+  }
+
+  handleConnectRequest(clientReq, clientRes) {
+    try {
+      const [hostname, port] = clientReq.url.split(':');
+      const targetPort = port || 443;
+
+      this.logger.info(`CONNECT ${hostname}:${targetPort}`);
+
+      // 建立到目标服务器的TCP连接
+      const net = require('net');
+      const serverSocket = net.connect(targetPort, hostname, () => {
+        // 连接成功，响应客户端
+        clientRes.write('HTTP/1.1 200 Connection Established\r\n\r\n');
+        // 建立双向管道
+        serverSocket.pipe(clientRes);
+        clientRes.pipe(serverSocket);
+      });
+
+      serverSocket.on('error', (error) => {
+        this.logger.error('CONNECT error:', error);
+        clientRes.end();
+      });
+
+      clientRes.on('error', (error) => {
+        this.logger.error('Client error:', error);
+        serverSocket.end();
+      });
+    } catch (error) {
+      this.logger.error('CONNECT unexpected error:', error);
+      clientRes.end();
     }
   }
 
