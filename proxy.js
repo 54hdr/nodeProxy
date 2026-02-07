@@ -1,5 +1,6 @@
 const http = require('http');
 const url = require('url');
+const net = require('net');
 
 class ProxyServer {
   constructor(config = {}) {
@@ -89,7 +90,6 @@ class ProxyServer {
       this.logger.info(`CONNECT ${hostname}:${targetPort}`);
 
       // 建立到目标服务器的TCP连接
-      const net = require('net');
       const serverSocket = net.connect(targetPort, hostname, () => {
         // 连接成功，响应客户端
         clientRes.write('HTTP/1.1 200 Connection Established\r\n\r\n');
